@@ -18,6 +18,7 @@ public class CoopEggCount : MonoBehaviour
     public Sprite h7;
     public Vector3 largerHouse = new Vector3(-8.22f, 4.77f,0.5f);
     public Vector2 bushLocation = new Vector2(-7.90f, 2.40f);
+    
     // Start is called before the first frame update
     void Start()
     {
@@ -35,7 +36,7 @@ public class CoopEggCount : MonoBehaviour
                 //if (GlobalVar.pinkFlag == false)
                // {
            
-            GlobalVar.eggRate = (0.01f * GlobalVar.adultsInPen)*(GlobalVar.mylevel+1);
+            GlobalVar.eggRate = (0.01f * GlobalVar.adultsInPen)*(GlobalVar.mylevel+1)*GlobalVar.eggRateMultiplier;
             //Good rate is 0.01f
 
             // }
@@ -44,7 +45,16 @@ public class CoopEggCount : MonoBehaviour
             //    GlobalVar.eggRate = 0.005f * GlobalVar.adultsInPen*5;
 
             //  }
-
+            //For checking with event where eggs are destroyed
+            if (GlobalVar.adultsInPen > 0&& GlobalVar.eggEvent ==true)
+            {
+                GlobalVar.eggEvent = false;
+                if (GlobalVar.eggInCoop == 0)
+                {
+                    eggLocal = 0;
+                   
+                }
+            }
             //Random number gen if bought rooster
             if (GlobalVar.justCollected == false)
             {
@@ -66,17 +76,17 @@ public class CoopEggCount : MonoBehaviour
         //Manage coop upgrades
         if (GlobalVar.mylevel == 1) {
             spriteHouse.sprite = h2;
-            GlobalVar.maxEggInCoop = 50;
+            GlobalVar.maxEggInCoop = 150;
         }
         else if (GlobalVar.mylevel == 2)
         {
             spriteHouse.sprite = h3;
-            GlobalVar.maxEggInCoop = 100;
+            GlobalVar.maxEggInCoop = 200;
         }
         else if (GlobalVar.mylevel == 3)
         {
             spriteHouse.sprite = h4;
-            GlobalVar.maxEggInCoop = 200;
+            GlobalVar.maxEggInCoop = 250;
         }
         else if (GlobalVar.mylevel == 4)
         {

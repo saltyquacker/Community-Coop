@@ -38,14 +38,21 @@ public class ChickBehaviour : MonoBehaviour
     public bool deadFlag = false;
     private bool sickFlag;
     private bool sickPercent;
-    private bool isAdult;
+    public bool isAdult;
 
     public SpriteRenderer spriterenderer;
     public Sprite dead;
     private GameObject chickNum;
+    //HANDLES DISPLAY ON CHICKENS ICON AND TEXT
     public Text txtName;
     public Text txtLvl;
     public Text countDown;
+    public GameObject streak; //longest living chicken
+    public GameObject subStatus; //Is player subscriber
+    public GameObject topPlayer; //highest level
+    public string whoistop;
+    
+
 
     public Sprite w; //White
     public Sprite y;  //Yellow
@@ -68,12 +75,13 @@ public class ChickBehaviour : MonoBehaviour
 
 
 
+
     public int level;
     public DateTime lastevent;
     public TimeSpan lastactivity;
     public DateTime rightnow;
     public Vector2 afkPos = new Vector2 (25.65f, 10.39f);
-    public Vector2 spawnPos = new Vector2(-8.10f, 4.16f);
+    public Vector2 spawnPos = new Vector2(-14.74f, 5.64f);
     public GameObject countdownText;
     public int countDownInt;
 
@@ -85,186 +93,265 @@ public class ChickBehaviour : MonoBehaviour
     public int randomCluck;
     public int playornoplay;
     
-    //public Slider healthBar;
-    //public float health =100;
-    //public float deathRate;
-    //public float decrement;
 
+    //UPDATED MOVEVEMENT
+    public string direction;
+    private float randomDirection;
+
+    private bool alivebefore = false;
     public int totalAdults;
+
+    
 
     void Start()
     {
+        //Disable all statuses at start
+        streak.SetActive(false);
+        subStatus.SetActive(false);
+        topPlayer.SetActive(false);
+
+       
+
+
+        //Instantiate chick for the first time
+        if (alivebefore == false)
+        {
+            num = GlobalVar.roster.Count - 1;
+            prefabchickName = this.gameObject.name;
+
+            //Regex to extract Prefab # from chicken's name
+            name = Regex.Match(prefabchickName, @"\d+").Value;
+            ////First Prefab chicken is 0
+            if (name == "")
+            {
+
+                name = GlobalVar.roster[GlobalVar.roster.Count - 1].Name;
+
+            }
+
+            //Set roster info of current chicken at index
+            colour = GlobalVar.roster[GlobalVar.roster.Count - 1].Colour;
+            strName = GlobalVar.roster[GlobalVar.roster.Count - 1].Name;
+            print(strName + ": " + colour);
+            chickNum = GameObject.Find(name);
+
+            txtName.text = strName;
+
+            alivebefore = true;
+        }
+        //Everything else happens after a reset
         isAdult = false;
         //Get Audio source
         audioSource = gameObject.GetComponent<AudioSource>();
         audioSource.PlayOneShot(hatch, 0.8f);
 
+        gameObject.transform.position = spawnPos;
 
-        num = GlobalVar.roster.Count - 1;
-        print(num);
+
         target = spawnPos;
-        position = gameObject.transform.position;
-        //Debug.Log(target);
-        //target = new Vector2(-3.0f, 3.3f);
-        target = new Vector2(UnityEngine.Random.Range(-16.72944f, 4.05f), UnityEngine.Random.Range(-3.33f, 6.18f));
-        prefabchickName = this.gameObject.name;
+        //position = gameObject.transform.position;
+   
+        //target = new Vector2(-2.3f, gameObject.transform.position.y);
+        //Spawns at coop so guaranteed to go right
+        direction = "right";
        
-        //Regex to extract Prefab # from chicken's name
-        name = Regex.Match(prefabchickName, @"\d+").Value;
-        ////First Prefab chicken is 0
-        if (name == "")
-        {
-            //int nameInt = GlobalVar.countChickSpawn - 1;
-            //name = nameInt.ToString();
-            name = GlobalVar.roster[GlobalVar.roster.Count-1].Name;
-            //Debug.Log(name);
-        }
 
-        //Debug.Log(name);
-        //Debug.Log(GlobalVar.countChickSpawn);
-
-        //Set roster info of current chicken at index
-        colour = GlobalVar.roster[GlobalVar.roster.Count - 1].Colour;
-        strName = GlobalVar.roster[GlobalVar.roster.Count - 1].Name;
-        print(strName + ": " + colour);
-        chickNum = GameObject.Find(name);
-
-        txtName.text = strName;
         countdownText.SetActive(false);
 
-        // Debug.Log("Death Rate of:" + chickNum + " is " + deathRate);
-        //Debug.Log("Using roster:  "+strName +" is "+ colour + "  "+ Time.time);
-        //Set colour of current chick in pen
-        //SET ALL DEFAULT CHICK COLOURS TO YELLOW!
+
         this.gameObject.GetComponent<Animator>().Play("Yellow");
         chickNum.GetComponent<SpriteRenderer>().sprite = y;
-       
+
 
         //Start UnityEngine.Random coroutine AGE() timer (chick duration)
         //Previously 1000,7000 ->200-700
         ageTime = UnityEngine.Random.Range(60.0f, 90.0f);
         StartCoroutine(Age(ageTime));
-        Debug.Log(strName + " will age in :" + ageTime + "seconds");
-       // decrement = 100;
+
+        //Check for icon statuses
+        if (GlobalVar.subPlayers.Contains(strName))
+        {
+            subStatus.SetActive(true);
+        }
+
     }
 
     void Update()
     {
+        //Get highest chicken
+        //If I am the highest chicken, give me crown!
 
-        totalAdults = GlobalVar.adultsInPen;
-        rightnow = DateTime.Now;
-        //Track time alive! 
-        //Based on LastEvent
-        //Chicken will stay alive for at least the duration of their chick life - testing only
-        lastevent = DateTime.Parse(GlobalVar.roster[num].LastEvent);
-        lastactivity = rightnow - lastevent;
-        //Debug.Log("Time since last activity:"+lastactivity.Seconds);
-        if (lastactivity.TotalHours > GlobalVar.AFKHours)
+        if (GlobalVar.roster[num].Level > GlobalVar.highestLevel)
         {
-            gameObject.GetComponent<Animator>().enabled = false;
-            //Debug.Log("AFK!" + lastactivity.ToString());
-            GlobalVar.roster[num].Exists = false;
-            //if (gameObject.activeSelf)
-            //{
-            //gameObject.SetActive(false);
-            if (gameObject.transform.position.x != afkPos.x && gameObject.transform.position.y != afkPos.y)
-            {
-                GlobalVar.eventlog.Add(new EventLog() { timestamp = rightnow.ToString(), eventType = "AFK", viewername = GlobalVar.roster[num].Name, quantity = 0, price = 0 });
-                GlobalVar.adultsInPen -= 1;
-                gameObject.transform.position = afkPos;
-               
-
-            }
+            //if I am the highest level, set the highest level to my level
+            GlobalVar.highestLevel = GlobalVar.roster[num].Level;
+            //Based on who gets there first, if a chicken can catch up to levels, they dont get crown status :)
+            GlobalVar.topPlayer = GlobalVar.roster[num].Name;
+            Debug.Log(GlobalVar.topPlayer + " is now the top player!");
             
-            //gameObject.transform.position = afkPos;
-            //}
         }
-        else if (lastactivity.TotalHours < GlobalVar.AFKHours)
-        {
-            //Display warning countdown on chicken till AFK
-            //countDown.enabled = false;
-            //if (lastactivity.TotalSeconds > 60)
-            // {
-            //Debug.Log(60-lastactivity.TotalSeconds);
-            //countDown.enabled = true;
-            //7200 seconds is 2 hours I guess!
-            countDownInt = (int)(7200 - lastactivity.TotalSeconds);
-            if(countDownInt < 60)
+        else{
+            if(GlobalVar.topPlayer == strName)
             {
-                countdownText.SetActive(true);
-                countDown.text = countDownInt.ToString();
-            }
-            else if (countDownInt > 60)
-            {
-                countdownText.SetActive(false);
-            }
-            
-           // }
-            //Debug.Log("ALIVE!" + lastactivity.ToString());
-            if(GlobalVar.roster[num].Exists == false)
-            {
-                gameObject.transform.position = spawnPos;
-                gameObject.GetComponent<Animator>().enabled = true;
-                GlobalVar.adultsInPen += 1;
-            }
-            GlobalVar.roster[num].Exists = true;
-            //If last event was an afk
-
-
-            if (!waiting)
-            {
-                float step = speed * Time.deltaTime;
-                if (Vector2.Distance(transform.position, target) < 0.001f)
+                //If any any time, the highest chicken dies, reset
+                if (GlobalVar.roster[num].Exists == "DEAD")
                 {
-                   randoLocation();
-                   StartCoroutine(RestCoroutine());
+                    GlobalVar.highestLevel = 0;
+                    GlobalVar.topPlayer = "";
                 }
-                // move sprite towards the target location
-                //cluck once when moving?
-               
-
+                else
+                {
+                    topPlayer.SetActive(true);
+                }
                 
-
-
-                transform.position = Vector2.MoveTowards(transform.position, target, step);
-                //yield return new WaitForSeconds(audioSource.clip.length);
-                //audioSource.clip = cluck2;
-
-
-
-
             }
-              
-
-         
-          
-
-
-            level = GlobalVar.roster[num].Level;
-
-            txtLvl.text = level.ToString();
-
-            if (level >= 1)
+            else
             {
-                float scale = 2 + (level * 0.08f); //.2 is good for scaling visually
-                                                  //No CAP
-                gameObject.transform.localScale = new Vector2(scale, scale);
-
-
-
+                topPlayer.SetActive(false);
             }
-            //gameObject.SetActive(true);
-            //if (!gameObject.activeSelf)
-            //{
-            //    gameObject.SetActive(true);
-            //    GlobalVar.adultsInPen -= 1;
-            //}
+            
         }
 
-        //SET LEVEL***********
-        //UP SIZE*******
+        //If I am longest living chicken, give me flame
+        //Do this differently than highest level, maybe iterate through all players and if alive, set oldest
 
 
+
+        if (GlobalVar.roster[num].Exists == "RESET")
+        {
+            //Maybe not destroy, fucks with counter
+            gameObject.transform.position = spawnPos;
+            GlobalVar.roster[num].Exists = "ALIVE";
+            GlobalVar.roster[num].Level = 0;
+            Start();
+            
+        }
+        else if (GlobalVar.roster[num].Exists == "ALIVE")
+        {
+
+
+
+            totalAdults = GlobalVar.adultsInPen;
+            rightnow = DateTime.Now;
+            //Track time alive! 
+            //Based on LastEvent
+            //Chicken will stay alive for at least the duration of their chick life - testing only
+            lastevent = DateTime.Parse(GlobalVar.roster[num].LastEvent);
+            lastactivity = rightnow - lastevent;
+            //Debug.Log("Time since last activity:"+lastactivity.Seconds);
+            if (lastactivity.TotalHours > GlobalVar.AFKHours)
+            {
+                gameObject.GetComponent<Animator>().enabled = false;
+                //Debug.Log("AFK!" + lastactivity.ToString());
+                GlobalVar.roster[num].Exists = "AFK";
+
+                //if (gameObject.activeSelf)
+                //{
+                //gameObject.SetActive(false);
+                if (gameObject.transform.position.x != afkPos.x && gameObject.transform.position.y != afkPos.y)
+                {
+                    GlobalVar.eventlog.Add(new EventLog() { timestamp = rightnow.ToString(), eventType = "AFK", viewername = GlobalVar.roster[num].Name, quantity = 0, price = 0 });
+                    GlobalVar.adultsInPen -= 1;
+                    gameObject.transform.position = afkPos;
+
+
+                }
+
+                //gameObject.transform.position = afkPos;
+                //}
+            }
+            else if (lastactivity.TotalHours < GlobalVar.AFKHours)
+            {
+                //Display warning countdown on chicken till AFK
+                //countDown.enabled = false;
+                //if (lastactivity.TotalSeconds > 60)
+                // {
+                //Debug.Log(60-lastactivity.TotalSeconds);
+                //countDown.enabled = true;
+                //7200 seconds is 2 hours I guess!
+                countDownInt = (int)(7200 - lastactivity.TotalSeconds);
+                if (countDownInt < 60)
+                {
+                    countdownText.SetActive(true);
+                    countDown.text = countDownInt.ToString();
+                }
+                else if (countDownInt > 60)
+                {
+                    countdownText.SetActive(false);
+                }
+
+                // }
+                //Debug.Log("ALIVE!" + lastactivity.ToString());
+                if (GlobalVar.roster[num].Exists == "AFK")
+                {
+                    gameObject.transform.position = spawnPos;
+                    gameObject.GetComponent<Animator>().enabled = true;
+                    GlobalVar.adultsInPen += 1;
+                }
+                GlobalVar.roster[num].Exists = "ALIVE";
+                //If last event was an afk
+
+
+                if (!waiting)
+                {
+                    float step = speed * Time.deltaTime;
+                    if (Vector2.Distance(transform.position, target) < 0.001f)
+                    {
+                        randoLocation();
+                        StartCoroutine(RestCoroutine());
+                       
+                    }
+                    // move sprite towards the target location
+                    //cluck once when moving?
+
+
+
+
+
+                    transform.position = Vector2.MoveTowards(transform.position, target, step);
+                    //yield return new WaitForSeconds(audioSource.clip.length);
+                    //audioSource.clip = cluck2;
+
+
+
+
+                }
+
+
+
+
+
+
+                level = GlobalVar.roster[num].Level;
+
+                txtLvl.text = level.ToString();
+
+                if (level >= 1)
+                {
+                    float scale = 2 + (level * 0.08f); //.2 is good for scaling visually
+                                                       //No CAP
+                    gameObject.transform.localScale = new Vector2(scale, scale);
+
+
+
+                }
+                //gameObject.SetActive(true);
+                //if (!gameObject.activeSelf)
+                //{
+                //    gameObject.SetActive(true);
+                //    GlobalVar.adultsInPen -= 1;
+                //}
+            }
+
+            //SET LEVEL***********
+            //UP SIZE*******
+
+        }
+        else if (GlobalVar.roster[num].Exists == "DEAD")
+        {
+            gameObject.transform.position = afkPos;
+            GlobalVar.roster[num].Level = 0;
+        }
 
 
 
@@ -276,24 +363,40 @@ public class ChickBehaviour : MonoBehaviour
         if (isAdult == true)
         {
 
-
-            playornoplay = UnityEngine.Random.Range(0, 1);
-            if (playornoplay == 0)
+            GetComponent<AudioSource>().PlayOneShot(cluck1, 0.1f);
+            randomDirection = UnityEngine.Random.Range(0.0f, 1.0f); //x or y
+            if (randomDirection > 0.5f)
             {
-                randomCluck = UnityEngine.Random.Range(0, 1);
-                if (randomCluck == 0)
+                target = new Vector2(UnityEngine.Random.Range(-16.72944f, 4.05f), gameObject.transform.position.y);
+                if (target.x > gameObject.transform.position.x)
                 {
-                    audioSource.PlayOneShot(cluck1, 0.7f);
+                    direction = "right";
                 }
                 else
                 {
-                    audioSource.PlayOneShot(cluck2, 0.7f);
-
+                    direction = "left";
                 }
-            }//else dont play, just move
+
+            }
+            else if (randomDirection < 0.5f)
+            {
+                target = new Vector2(gameObject.transform.position.x, UnityEngine.Random.Range(-3.33f, 6.18f));
+                if (target.y > gameObject.transform.position.y)
+                {
+                    direction = "back";
+                }
+                else
+                {
+                    direction = "front";
+                }
+            }
 
         }
-        target = new Vector2(UnityEngine.Random.Range(-16.72944f, 4.05f), UnityEngine.Random.Range(-3.33f, 6.18f));
+       else if(isAdult ==false)
+       {
+            target = new Vector2(UnityEngine.Random.Range(-16.72944f, 4.05f), UnityEngine.Random.Range(-3.33f, 6.18f));
+       }
+        
 
     }
 
@@ -302,7 +405,7 @@ public class ChickBehaviour : MonoBehaviour
     IEnumerator RestCoroutine()
     {
         waiting = true;
-        waitRand = UnityEngine.Random.Range(30.0f, 60.0f);
+        waitRand = UnityEngine.Random.Range(10.0f, 30.0f);
 
         //Disable animator
         gameObject.GetComponent<Animator>().enabled = false;
@@ -311,6 +414,11 @@ public class ChickBehaviour : MonoBehaviour
         //Enable animator after wait
         gameObject.GetComponent<Animator>().enabled = true;
         waiting = false;
+        if (isAdult == true)
+        {
+            ColourPicker(colour, direction);
+        }
+
     }
 
     //Timer as soon as chick is 'born'
@@ -322,6 +430,9 @@ public class ChickBehaviour : MonoBehaviour
         isAdult = true;
         GlobalVar.adultsInPen += 1;
         //GlobalVar.chicksInPen -= 1;
+        //RESET TARGET SO IT DOESNT DO FUNNY THINGS when growing up
+        target = new Vector2(gameObject.transform.position.x-0.5f, gameObject.transform.position.y);
+        direction = "left";
         if (colour == "white")
         {
             this.gameObject.GetComponent<Animator>().Play("aW");
@@ -380,20 +491,281 @@ public class ChickBehaviour : MonoBehaviour
         }
 
         //  StartCoroutine(Death());
+        //GlobalVar.roster[GlobalVar.roster.Count - 1].Exists = "RESET";
+        //GlobalVar.eventlog.Add(new EventLog() { timestamp = rightnow.ToString(), eventType = "dead", viewername = GlobalVar.roster[GlobalVar.roster.Count - 1].Name});
 
 
     }
-    //As soon as chick has reached adult hood, wait to die
-    //IEnumerator Death()
-    //{
-    //    float death = UnityEngine.Random.Range(6000.0f,7000.0f); 
-        
-        
-    //    yield return new WaitForSeconds(death);
+   
+    void ColourPicker(string col,string dir)
+    {
+      
+        if (colour == "white")
+        {
+            
 
-    // //   Debug.Log(strName + " has died.  " + Time.time);
-    //    deadFlag = true;
+            if(direction == "left")
+            {
+                this.gameObject.GetComponent<Animator>().Play("leftwhite");
+                gameObject.GetComponent<SpriteRenderer>().flipX = false;
+            }
+            else if(direction == "right")
+            {
+                this.gameObject.GetComponent<Animator>().Play("leftwhite");
+                gameObject.GetComponent<SpriteRenderer>().flipX = true;
 
-    //}
+            }
+            else if(direction == "front")
+            {
+                this.gameObject.GetComponent<Animator>().Play("aW");
+            }
+            else if(direction == "back")
+            {
+                this.gameObject.GetComponent<Animator>().Play("backwhite");
+              
+            }
+
+        }
+        else if (colour == "yellow")
+        {
+            if (direction == "left")
+            {
+                this.gameObject.GetComponent<Animator>().Play("leftyellow");
+                gameObject.GetComponent<SpriteRenderer>().flipX = false;
+            }
+            else if (direction == "right")
+            {
+                this.gameObject.GetComponent<Animator>().Play("leftyellow");
+                gameObject.GetComponent<SpriteRenderer>().flipX = true;
+
+            }
+            else if (direction == "front")
+            {
+                this.gameObject.GetComponent<Animator>().Play("addY");
+            }
+            else if (direction == "back")
+            {
+                this.gameObject.GetComponent<Animator>().Play("backyellow");
+
+            }
+        }
+        else if (colour == "brown")
+        {
+
+            if (direction == "left")
+            {
+                this.gameObject.GetComponent<Animator>().Play("leftbrown");
+                gameObject.GetComponent<SpriteRenderer>().flipX = false;
+            }
+            else if (direction == "right")
+            {
+                this.gameObject.GetComponent<Animator>().Play("leftbrown");
+                gameObject.GetComponent<SpriteRenderer>().flipX = true;
+
+            }
+            else if (direction == "front")
+            {
+                this.gameObject.GetComponent<Animator>().Play("aBr");
+            }
+            else if (direction == "back")
+            {
+                this.gameObject.GetComponent<Animator>().Play("backbrown");
+
+            }
+        }
+        else if (colour == "dGrey")
+        {
+      
+            if (direction == "left")
+            {
+                this.gameObject.GetComponent<Animator>().Play("leftdgrey");
+                gameObject.GetComponent<SpriteRenderer>().flipX = false;
+            }
+            else if (direction == "right")
+            {
+                this.gameObject.GetComponent<Animator>().Play("leftdgrey");
+                gameObject.GetComponent<SpriteRenderer>().flipX = true;
+
+            }
+            else if (direction == "front")
+            {
+                this.gameObject.GetComponent<Animator>().Play("aDG");
+            }
+            else if (direction == "back")
+            {
+                this.gameObject.GetComponent<Animator>().Play("backdgrey");
+
+            }
+        }
+        else if (colour == "green")
+        {
+           // this.gameObject.GetComponent<Animator>().Play("aGr");
+            if (direction == "left")
+            {
+                this.gameObject.GetComponent<Animator>().Play("leftgreen");
+                gameObject.GetComponent<SpriteRenderer>().flipX = false;
+            }
+            else if (direction == "right")
+            {
+                this.gameObject.GetComponent<Animator>().Play("leftgreen");
+                gameObject.GetComponent<SpriteRenderer>().flipX = true;
+
+            }
+            else if (direction == "front")
+            {
+                this.gameObject.GetComponent<Animator>().Play("aGr");
+            }
+            else if (direction == "back")
+            {
+                this.gameObject.GetComponent<Animator>().Play("backgreen");
+
+            }
+        }
+        else if (colour == "lGrey")
+        {
+            //this.gameObject.GetComponent<Animator>().Play("aLG");
+            if (direction == "left")
+            {
+                this.gameObject.GetComponent<Animator>().Play("leftlgrey");
+                gameObject.GetComponent<SpriteRenderer>().flipX = false;
+            }
+            else if (direction == "right")
+            {
+                this.gameObject.GetComponent<Animator>().Play("leftlgrey");
+                gameObject.GetComponent<SpriteRenderer>().flipX = true;
+
+            }
+            else if (direction == "front")
+            {
+                this.gameObject.GetComponent<Animator>().Play("aLG");
+            }
+            else if (direction == "back")
+            {
+                this.gameObject.GetComponent<Animator>().Play("backlgrey");
+
+            }
+        }
+        else if (colour == "orange")
+        {
+            //this.gameObject.GetComponent<Animator>().Play("aO");
+            if (direction == "left")
+            {
+                this.gameObject.GetComponent<Animator>().Play("leftorange");
+                gameObject.GetComponent<SpriteRenderer>().flipX = false;
+            }
+            else if (direction == "right")
+            {
+                this.gameObject.GetComponent<Animator>().Play("leftorange");
+                gameObject.GetComponent<SpriteRenderer>().flipX = true;
+
+            }
+            else if (direction == "front")
+            {
+                this.gameObject.GetComponent<Animator>().Play("aO");
+            }
+            else if (direction == "back")
+            {
+                this.gameObject.GetComponent<Animator>().Play("backorange");
+
+            }
+        }
+        else if (colour == "pink")
+        {
+            //this.gameObject.GetComponent<Animator>().Play("aPink");
+            if (direction == "left")
+            {
+                this.gameObject.GetComponent<Animator>().Play("leftpink");
+                gameObject.GetComponent<SpriteRenderer>().flipX = false;
+            }
+            else if (direction == "right")
+            {
+                this.gameObject.GetComponent<Animator>().Play("leftpink");
+                gameObject.GetComponent<SpriteRenderer>().flipX = true;
+
+            }
+            else if (direction == "front")
+            {
+                this.gameObject.GetComponent<Animator>().Play("aPink");
+            }
+            else if (direction == "back")
+            {
+                this.gameObject.GetComponent<Animator>().Play("backpink");
+
+            }
+        }
+        else if (colour == "purple")
+        {
+            
+            if (direction == "left")
+            {
+                this.gameObject.GetComponent<Animator>().Play("leftpurple");
+                gameObject.GetComponent<SpriteRenderer>().flipX = false;
+            }
+            else if (direction == "right")
+            {
+                this.gameObject.GetComponent<Animator>().Play("leftpurple");
+                gameObject.GetComponent<SpriteRenderer>().flipX = true;
+
+            }
+            else if (direction == "front")
+            {
+                this.gameObject.GetComponent<Animator>().Play("aPurp");
+            }
+            else if (direction == "back")
+            {
+                this.gameObject.GetComponent<Animator>().Play("backpurple");
+
+            }
+        }
+        else if (colour == "blue")
+        {
+           // this.gameObject.GetComponent<Animator>().Play("aBlue");
+            if (direction == "left")
+            {
+                this.gameObject.GetComponent<Animator>().Play("leftblue");
+                gameObject.GetComponent<SpriteRenderer>().flipX = false;
+            }
+            else if (direction == "right")
+            {
+                this.gameObject.GetComponent<Animator>().Play("leftblue");
+                gameObject.GetComponent<SpriteRenderer>().flipX = true;
+
+            }
+            else if (direction == "front")
+            {
+                this.gameObject.GetComponent<Animator>().Play("aBlue");
+            }
+            else if (direction == "back")
+            {
+                this.gameObject.GetComponent<Animator>().Play("backblue");
+
+            }
+        }
+        else if (colour == "red")//LAST RECOLOUR
+        {
+            this.gameObject.GetComponent<Animator>().Play("aRed");
+            if (direction == "left")
+            {
+                this.gameObject.GetComponent<Animator>().Play("leftwhite");
+                gameObject.GetComponent<SpriteRenderer>().flipX = false;
+            }
+            else if (direction == "right")
+            {
+                this.gameObject.GetComponent<Animator>().Play("leftwhite");
+                gameObject.GetComponent<SpriteRenderer>().flipX = true;
+
+            }
+            else if (direction == "front")
+            {
+                this.gameObject.GetComponent<Animator>().Play("aRed");
+            }
+            else if (direction == "back")
+            {
+                this.gameObject.GetComponent<Animator>().Play("backwhite");
+
+            }
+        }
+
+    }
 
 }

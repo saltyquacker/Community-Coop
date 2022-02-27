@@ -11,7 +11,7 @@ public class StockMarket : MonoBehaviour
     public int flux;
     public bool posNeg;
     public float hour = 5.0f;
-    public int previousPricePerDozen;
+    public int previousPricePerDozen=0;
     public Sprite up;
     public Sprite down;
     public Sprite none;
@@ -19,7 +19,7 @@ public class StockMarket : MonoBehaviour
     void Start()
     {
         currentPricePerDozen = 2;
-
+        GlobalVar.marketPrice = currentPricePerDozen;
 
     }
 
@@ -31,7 +31,9 @@ public class StockMarket : MonoBehaviour
 
         if (countdownToPriceChange < 1)
         {
+            //500
             countdownToPriceChange = 500;
+            
 
             if (currentPricePerDozen >= 4)
             {
@@ -70,10 +72,13 @@ public class StockMarket : MonoBehaviour
             }
             Debug.Log("Current Price per Dozen: " + currentPricePerDozen+ "$");
             previousPricePerDozen = currentPricePerDozen;
+            
         }
-        
+        GlobalVar.marketPrice = currentPricePerDozen+ GlobalVar.marketRateAddition;
 
-        GlobalVar.marketPrice = currentPricePerDozen;
+
+
+
 
     }
 }

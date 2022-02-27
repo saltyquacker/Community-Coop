@@ -5,6 +5,7 @@ using UnityEngine.UI;
 using System.Globalization;
 using System.Threading.Tasks;
 using System.IO;
+using System.Linq;
 
 public class QuantityCanvasOnPen : MonoBehaviour
 {
@@ -25,15 +26,45 @@ public class QuantityCanvasOnPen : MonoBehaviour
     public Text totalPlayers;
     public Text totalPlayersActive;
     public string listString;
+
+    public List<string> subList = new List<string>();
+    public string subString;
+    public Text subDisplay;
+    private string subpath = "subscriberlist_2022-01-24_12-25-54.csv";
+    private string[] lines;
+   
+    //randomevent script manages event game object
+    ChickenBuilder highestChickenIndex;
     // Start is called before the first frame update
     void Start()
     {
         listString = "";
+        //Looks in current directory
+        lines = File.ReadAllLines(subpath);
+        foreach (string line in lines)
+        {
+            //Skip first index
+            string[] columns = line.Split(',');
+            if (columns[1].ToLower() != "user_name")
+            {
+
+                //subList.Add(columns[1].ToLower());
+                subString += columns[1].ToLower() + "\n\n";
+                GlobalVar.subPlayers.Add(columns[1].ToLower());
+
+            }
+
+        }
+        subDisplay.text = subString;
+
+
+        //subString = "";
     }
 
     // Update is called once per frame
     void Update()
     {
+      
         //Update list of players and info!
 
         for (int p = 0; p < GlobalVar.roster.Count; p++)
